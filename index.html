@@ -1,0 +1,1281 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EntregadorPro - Gestão de Entregas e Finanças</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                        },
+                        orangeBrand: {
+                            500: '#f97316',
+                            600: '#ea580c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        /* Ocultar barra de rolagem visualmente mantendo a rolagem ativa */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200 selection:bg-brand-500 selection:text-white">
+
+    <!-- Header Fixo Topo -->
+    <header class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30 transition-colors">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-orangeBrand-500 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-motorcycle"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg leading-none tracking-tight text-gray-900 dark:text-white">Entregador<span class="text-brand-500">Pro</span></h1>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Gestão Diária & KM</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- Alterar Tema (Dark/Light) -->
+                <button id="themeToggleBtn" onclick="toggleDarkMode()" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+                </button>
+                <!-- Botão de Meta Diária -->
+                <button onclick="openGoalModal()" class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center hover:bg-amber-500/20 transition" title="Definir Meta">
+                    <i class="fa-solid fa-bullseye"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-md w-full mx-auto p-4 pb-24 space-y-4">
+
+        <!-- Toast Notification -->
+        <div id="toastMessage" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-sm p-3.5 rounded-2xl shadow-2xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-xs font-semibold flex items-center justify-between border border-gray-700 dark:border-gray-200 transition-all">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-circle-check text-brand-500 text-sm"></i>
+                <span id="toastText">Ação concluída com sucesso!</span>
+            </div>
+            <i class="fa-solid fa-xmark cursor-pointer opacity-70 hover:opacity-100" onclick="hideToast()"></i>
+        </div>
+
+        <!-- BARRA DE META DIÁRIA (FIXA NO PAINEL) -->
+        <section id="goalWidget" class="bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-2">
+            <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-flag-checkered text-amber-500"></i> Meta Diária
+                </span>
+                <span class="text-[11px] font-semibold text-gray-500 dark:text-gray-400" id="goalProgressText">R$ 0 / R$ 200</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
+                <div id="goalProgressBar" class="bg-gradient-to-r from-amber-500 to-brand-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+            </div>
+            <p id="goalRemainingText" class="text-[10px] text-gray-400 text-right italic">Faltam R$ 200,00 para bater a meta de hoje</p>
+        </section>
+
+        <!-- ABA 1: DASHBOARD / RESUMO -->
+        <section id="tab-dashboard" class="space-y-4">
+            <!-- Filtro de Período -->
+            <div class="flex bg-gray-200/70 dark:bg-gray-900 p-1 rounded-xl text-xs font-semibold border border-gray-300/30 dark:border-gray-800">
+                <button onclick="setPeriodFilter('today')" id="filter-today" class="flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-gray-800 shadow-sm text-brand-600 dark:text-brand-400 font-bold">Hoje</button>
+                <button onclick="setPeriodFilter('week')" id="filter-week" class="flex-1 py-1.5 rounded-lg text-center transition text-gray-600 dark:text-gray-400">Semana</button>
+                <button onclick="setPeriodFilter('month')" id="filter-month" class="flex-1 py-1.5 rounded-lg text-center transition text-gray-600 dark:text-gray-400">Mês</button>
+                <button onclick="setPeriodFilter('all')" id="filter-all" class="flex-1 py-1.5 rounded-lg text-center transition text-gray-600 dark:text-gray-400">Geral</button>
+            </div>
+
+            <!-- Card Principal de Lucro Líquido -->
+            <div class="bg-gradient-to-br from-brand-600 via-emerald-700 to-teal-800 rounded-3xl p-5 text-white shadow-xl shadow-brand-500/10 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 opacity-10 text-9xl font-black select-none pointer-events-none">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-[11px] uppercase tracking-wider text-emerald-200 font-bold">Lucro Líquido Real</span>
+                    <span class="bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[10px] font-semibold" id="periodLabel">Hoje</span>
+                </div>
+                <h2 class="text-3xl font-extrabold tracking-tight" id="dashLucroLiquido">R$ 0,00</h2>
+                
+                <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/15 text-xs">
+                    <div>
+                        <span class="text-emerald-100 block text-[10px] uppercase font-semibold">Faturamento Bruto</span>
+                        <span class="font-bold text-base text-white" id="dashFaturamentoBruto">R$ 0,00</span>
+                    </div>
+                    <div>
+                        <span class="text-emerald-100 block text-[10px] uppercase font-semibold">Total Gastos</span>
+                        <span class="font-bold text-base text-red-200" id="dashTotalDespesas">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid de Indicadores Rápido -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-gray-500 dark:text-gray-400 text-xs mb-1">
+                        <i class="fa-solid fa-box text-orangeBrand-500"></i>
+                        <span>Entregas</span>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-900 dark:text-white" id="dashTotalEntregas">0</span>
+                    <span class="text-[10px] text-gray-400 mt-0.5">Concluídas no período</span>
+                </div>
+
+                <div class="bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-gray-500 dark:text-gray-400 text-xs mb-1">
+                        <i class="fa-solid fa-chart-line text-brand-500"></i>
+                        <span>Média / Corrida</span>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-900 dark:text-white" id="dashMediaEntrega">R$ 0,00</span>
+                    <span class="text-[10px] text-gray-400 mt-0.5">Taxa + Gorjeta</span>
+                </div>
+            </div>
+
+            <!-- Resumo complementar (Gorjetas, Diárias e KM) -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+                    <span class="text-[10px] text-gray-400 block font-medium">Gorjetas</span>
+                    <p class="text-sm font-bold text-amber-500 mt-0.5" id="dashGorjetas">R$ 0,00</p>
+                </div>
+                <div class="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+                    <span class="text-[10px] text-gray-400 block font-medium">Diárias Fixas</span>
+                    <p class="text-sm font-bold text-blue-500 mt-0.5" id="dashDiariasFixas">R$ 0,00</p>
+                </div>
+                <div class="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+                    <span class="text-[10px] text-gray-400 block font-medium">KM Rodados</span>
+                    <p class="text-sm font-bold text-emerald-500 mt-0.5" id="dashKmRodados">0 km</p>
+                </div>
+            </div>
+
+            <!-- Botões de Ação Rápida -->
+            <div class="grid grid-cols-2 gap-3 pt-1">
+                <button onclick="switchTab('tab-add-delivery')" class="bg-brand-600 hover:bg-brand-700 text-white p-3.5 rounded-2xl font-semibold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-brand-500/20 active:scale-95 transition">
+                    <i class="fa-solid fa-plus-circle text-base"></i>
+                    <span>Nova Entrega</span>
+                </button>
+                <button onclick="switchTab('tab-add-shift')" class="bg-gray-900 dark:bg-gray-800 hover:bg-black text-white p-3.5 rounded-2xl font-semibold text-xs flex items-center justify-center space-x-2 border border-gray-800 shadow-sm active:scale-95 transition">
+                    <i class="fa-solid fa-gas-pump text-base text-orangeBrand-500"></i>
+                    <span>Lançar Gastos/KM</span>
+                </button>
+            </div>
+
+            <!-- Últimas Corridas -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Últimas Atividades</h3>
+                    <button onclick="switchTab('tab-history')" class="text-xs text-brand-500 font-semibold hover:underline">Ver Histórico</button>
+                </div>
+                <div id="recentDeliveriesList" class="space-y-2">
+                    <!-- Injetado via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 2: NOVA ENTREGA -->
+        <section id="tab-add-delivery" class="hidden space-y-4">
+            <div class="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <h2 class="text-base font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-motorcycle text-brand-500"></i>
+                    <span id="deliveryFormTitle">Registrar Nova Entrega</span>
+                </h2>
+
+                <form id="deliveryForm" onsubmit="saveDelivery(event)" class="space-y-3.5">
+                    <input type="hidden" id="deliveryId">
+
+                    <!-- Plataforma / App -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Plataforma *</label>
+                        <select id="delPlatform" required class="w-full px-3.5 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="iFood">iFood</option>
+                            <option value="Rappi">Rappi</option>
+                            <option value="Loggi">Loggi</option>
+                            <option value="Uber Flash">Uber Flash</option>
+                            <option value="Zé Delivery">Zé Delivery</option>
+                            <option value="Mercado Livre">Mercado Livre</option>
+                            <option value="Particular">Particular / Restaurante</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <!-- Endereço / Bairro / Cliente -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Destino / Bairro / Cliente</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
+                            <input type="text" id="delClientAddress" placeholder="Ex: Bairro Centro, Apt 402" class="w-full pl-9 pr-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Valores: Taxa e Gorjeta -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Valor/Taxa (R$) *</label>
+                            <input type="number" step="0.01" id="delFee" required placeholder="0,00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-brand-600 dark:text-brand-400 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Gorjeta (R$)</label>
+                            <input type="number" step="0.01" id="delTip" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-amber-500 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Pagamento e Status -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Pagamento</label>
+                            <select id="delPaymentMethod" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                <option value="Cartão no App">Cartão no App</option>
+                                <option value="PIX">PIX Direto</option>
+                                <option value="Maquininha">Maquininha</option>
+                                <option value="Dinheiro">Dinheiro em Mão</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Status</label>
+                            <select id="delStatus" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                <option value="Concluída">Concluída</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Data e Hora -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Data</label>
+                            <input type="date" id="delDate" required class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Hora</label>
+                            <input type="time" id="delTime" required class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Observações</label>
+                        <input type="text" id="delNotes" placeholder="Ex: Entrega com chuva, cliente de boa" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" onclick="cancelDeliveryEdit()" id="btnCancelEditDel" class="hidden flex-1 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-medium text-xs">Cancelar</button>
+                        <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg shadow-brand-500/20 transition">Salvar Entrega</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ABA 3: DIÁRIA E GASTOS DO TURNO -->
+        <section id="tab-add-shift" class="hidden space-y-4">
+            <div class="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <h2 class="text-base font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-gas-pump text-orangeBrand-500"></i>
+                    <span id="shiftFormTitle">Diária, Gastos & Quilometragem</span>
+                </h2>
+
+                <form id="shiftForm" onsubmit="saveShift(event)" class="space-y-3.5">
+                    <input type="hidden" id="shiftId">
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Data *</label>
+                            <input type="date" id="shiftDate" required class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Diária Fixa (R$)</label>
+                            <input type="number" step="0.01" id="shiftFixedValue" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-blue-500 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-800 space-y-3">
+                        <span class="text-[11px] font-bold text-emerald-500 uppercase tracking-wider block">
+                            <i class="fa-solid fa-gauge-high mr-1"></i> Controle de KM
+                        </span>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-gray-400 mb-1">KM Inicial</label>
+                                <input type="number" id="shiftKmStart" placeholder="Ex: 45000" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-gray-400 mb-1">KM Final</label>
+                                <input type="number" id="shiftKmEnd" placeholder="Ex: 45120" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <span class="text-[11px] font-bold text-red-500 uppercase tracking-wider block">
+                            <i class="fa-solid fa-receipt mr-1"></i> Gastos do Dia
+                        </span>
+                        
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-300 mb-1">Combustível (Gasolina / Etanol)</label>
+                            <input type="number" step="0.01" id="shiftFuel" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-semibold text-red-400 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 dark:text-gray-300 mb-1">Alimentação</label>
+                                <input type="number" step="0.01" id="shiftFood" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-semibold text-red-400 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 dark:text-gray-300 mb-1">Manutenção/Óleo</label>
+                                <input type="number" step="0.01" id="shiftMaintenance" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-semibold text-red-400 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-300 mb-1">Outros Gastos</label>
+                            <input type="number" step="0.01" id="shiftOthers" placeholder="0,00" value="0.00" class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-semibold text-red-400 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Observações do Turno</label>
+                        <textarea id="shiftNotes" rows="2" placeholder="Ex: Troca de óleo realizada, pneu furou..." class="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" onclick="cancelShiftEdit()" id="btnCancelEditShift" class="hidden flex-1 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-medium text-xs">Cancelar</button>
+                        <button type="submit" class="flex-1 bg-gray-900 dark:bg-gray-800 hover:bg-black text-white py-3 rounded-xl font-bold text-xs shadow-md border border-gray-700 transition">Salvar Turno</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ABA 4: HISTÓRICO & FILTROS -->
+        <section id="tab-history" class="hidden space-y-4">
+            <!-- Alternador de Sub-Aba: Entregas vs Gastos -->
+            <div class="flex bg-gray-200/70 dark:bg-gray-900 p-1 rounded-xl text-xs font-semibold border border-gray-300/30 dark:border-gray-800">
+                <button onclick="setHistorySubTab('deliveries')" id="subtab-btn-deliveries" class="flex-1 py-2 rounded-lg text-center transition bg-white dark:bg-gray-800 text-brand-500 shadow-sm">Corridas</button>
+                <button onclick="setHistorySubTab('shifts')" id="subtab-btn-shifts" class="flex-1 py-2 rounded-lg text-center transition text-gray-600 dark:text-gray-400">Turnos / Gastos</button>
+            </div>
+
+            <!-- Filtros de Busca -->
+            <div class="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <label class="block text-gray-400 text-[10px] mb-1">Filtrar por Data:</label>
+                    <input type="date" id="historyDateFilter" onchange="renderHistoryList()" class="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-[10px] mb-1">Plataforma:</label>
+                    <select id="historyPlatformFilter" onchange="renderHistoryList()" class="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs">
+                        <option value="ALL">Todas</option>
+                        <option value="iFood">iFood</option>
+                        <option value="Rappi">Rappi</option>
+                        <option value="Loggi">Loggi</option>
+                        <option value="Uber Flash">Uber Flash</option>
+                        <option value="Zé Delivery">Zé Delivery</option>
+                        <option value="Mercado Livre">Mercado Livre</option>
+                        <option value="Particular">Particular</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Lista de Registros -->
+            <div id="historyItemsContainer" class="space-y-2.5">
+                <!-- Injetado dinamicamente -->
+            </div>
+        </section>
+
+        <!-- ABA 5: RELATÓRIOS & CONFIGURAÇÕES -->
+        <section id="tab-reports" class="hidden space-y-4">
+            <!-- Gráfico Semanal -->
+            <div class="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-brand-500"></i> Faturamento vs Gastos (7 dias)
+                </h3>
+                <div class="relative h-56">
+                    <canvas id="weeklyEarningsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico Plataformas -->
+            <div class="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-orangeBrand-500"></i> Faturamento por Plataforma
+                </h3>
+                <div class="relative h-52">
+                    <canvas id="platformDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Ferramentas de Backup e Exportação -->
+            <div class="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-blue-500"></i> Dados e Backup
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportDataJSON()" class="py-2.5 px-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition">
+                        <i class="fa-solid fa-download"></i> Exportar JSON
+                    </button>
+                    <label class="py-2.5 px-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition">
+                        <i class="fa-solid fa-upload"></i> Importar JSON
+                        <input type="file" id="importFileInput" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                    </label>
+                </div>
+
+                <button onclick="exportDataCSV()" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition">
+                    <i class="fa-solid fa-file-csv"></i> Exportar para CSV (Excel)
+                </button>
+
+                <hr class="border-gray-200 dark:border-gray-800 my-2">
+
+                <button onclick="clearAllData()" class="w-full py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-trash-can"></i> Limpar Todos os Dados
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal de Meta Diária -->
+    <div id="goalModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-xs p-5 shadow-2xl border border-gray-200 dark:border-gray-800 space-y-4">
+            <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-3">
+                <h3 class="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-bullseye text-amber-500"></i> Definir Meta Diária
+                </h3>
+                <button onclick="closeGoalModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Qual é a sua meta faturar por dia? (R$)</label>
+                <input type="number" id="inputDailyGoal" placeholder="Ex: 200" class="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl font-bold text-lg text-center text-brand-500 focus:outline-none">
+            </div>
+            <button onclick="saveDailyGoal()" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-500/20 transition">
+                Salvar Meta
+            </button>
+        </div>
+    </div>
+
+    <!-- Navegação Inferior Estilo App Mobile -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-40 transition-colors">
+        <div class="max-w-md mx-auto grid grid-cols-5 h-16">
+            <button onclick="switchTab('tab-dashboard')" id="nav-tab-dashboard" class="flex flex-col items-center justify-center text-brand-500 transition">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-medium mt-1">Início</span>
+            </button>
+            <button onclick="switchTab('tab-add-delivery')" id="nav-tab-add-delivery" class="flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                <i class="fa-solid fa-circle-plus text-lg"></i>
+                <span class="text-[10px] font-medium mt-1">Corrida</span>
+            </button>
+            <button onclick="switchTab('tab-add-shift')" id="nav-tab-add-shift" class="flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                <i class="fa-solid fa-gas-pump text-lg"></i>
+                <span class="text-[10px] font-medium mt-1">Gastos/KM</span>
+            </button>
+            <button onclick="switchTab('tab-history')" id="nav-tab-history" class="flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                <i class="fa-solid fa-list-check text-lg"></i>
+                <span class="text-[10px] font-medium mt-1">Histórico</span>
+            </button>
+            <button onclick="switchTab('tab-reports')" id="nav-tab-reports" class="flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                <i class="fa-solid fa-chart-line text-lg"></i>
+                <span class="text-[10px] font-medium mt-1">Relatórios</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- LÓGICA JAVASCRIPT DO APLICATIVO -->
+    <script>
+        /* ==========================================================================
+           ESTADO DA APLICAÇÃO & PERSISTÊNCIA
+           ========================================================================== */
+        let deliveries = [];
+        let shifts = [];
+        let dailyGoal = 200.00;
+        let activePeriodFilter = 'today';
+        let activeHistorySubTab = 'deliveries';
+
+        let weeklyChartInstance = null;
+        let platformChartInstance = null;
+
+        window.onload = function() {
+            loadStoredData();
+            initDates();
+            initCharts();
+            renderApp();
+        };
+
+        function loadStoredData() {
+            const storedDeliveries = localStorage.getItem('entregapro_v2_deliveries');
+            const storedShifts = localStorage.getItem('entregapro_v2_shifts');
+            const storedGoal = localStorage.getItem('entregapro_v2_goal');
+
+            if (storedDeliveries) {
+                try { deliveries = JSON.parse(storedDeliveries); } catch(e) { deliveries = []; }
+            } else {
+                deliveries = getSampleDeliveries();
+                localStorage.setItem('entregapro_v2_deliveries', JSON.stringify(deliveries));
+            }
+
+            if (storedShifts) {
+                try { shifts = JSON.parse(storedShifts); } catch(e) { shifts = []; }
+            } else {
+                shifts = getSampleShifts();
+                localStorage.setItem('entregapro_v2_shifts', JSON.stringify(shifts));
+            }
+
+            if (storedGoal) {
+                dailyGoal = parseFloat(storedGoal) || 200.00;
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('entregapro_v2_deliveries', JSON.stringify(deliveries));
+            localStorage.setItem('entregapro_v2_shifts', JSON.stringify(shifts));
+            localStorage.setItem('entregapro_v2_goal', dailyGoal.toString());
+            renderApp();
+        }
+
+        function initDates() {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toTimeString().split(' ')[0].substring(0, 5);
+
+            document.getElementById('delDate').value = today;
+            document.getElementById('delTime').value = nowTime;
+            document.getElementById('shiftDate').value = today;
+        }
+
+        /* ==========================================================================
+           NAVEGAÇÃO E TEMAS
+           ========================================================================== */
+        function switchTab(tabId) {
+            const tabs = ['tab-dashboard', 'tab-add-delivery', 'tab-add-shift', 'tab-history', 'tab-reports'];
+            tabs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+
+                const navBtn = document.getElementById('nav-' + id);
+                if (navBtn) {
+                    navBtn.classList.remove('text-brand-500');
+                    navBtn.classList.add('text-gray-400');
+                }
+            });
+
+            const activeEl = document.getElementById(tabId);
+            if (activeEl) activeEl.classList.remove('hidden');
+
+            const activeNavBtn = document.getElementById('nav-' + tabId);
+            if (activeNavBtn) {
+                activeNavBtn.classList.remove('text-gray-400');
+                activeNavBtn.classList.add('text-brand-500');
+            }
+
+            if (tabId === 'tab-reports') {
+                updateCharts();
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setPeriodFilter(period) {
+            activePeriodFilter = period;
+            ['today', 'week', 'month', 'all'].forEach(p => {
+                const btn = document.getElementById('filter-' + p);
+                if (p === period) {
+                    btn.className = "flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-gray-800 shadow-sm text-brand-500 font-bold";
+                } else {
+                    btn.className = "flex-1 py-1.5 rounded-lg text-center transition text-gray-600 dark:text-gray-400";
+                }
+            });
+
+            const labels = {
+                today: 'Hoje',
+                week: 'Esta Semana',
+                month: 'Este Mês',
+                all: 'Todo o Período'
+            };
+            document.getElementById('periodLabel').textContent = labels[period];
+
+            renderDashboard();
+        }
+
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            setTimeout(updateCharts, 100);
+        }
+
+        if (localStorage.getItem('theme') === 'light') {
+            document.documentElement.classList.remove('dark');
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toastMessage');
+            document.getElementById('toastText').textContent = text;
+            toast.classList.remove('hidden');
+            setTimeout(hideToast, 3000);
+        }
+
+        function hideToast() {
+            document.getElementById('toastMessage').classList.add('hidden');
+        }
+
+        /* ==========================================================================
+           META DIÁRIA
+           ========================================================================== */
+        function openGoalModal() {
+            document.getElementById('inputDailyGoal').value = dailyGoal;
+            document.getElementById('goalModal').classList.remove('hidden');
+        }
+
+        function closeGoalModal() {
+            document.getElementById('goalModal').classList.add('hidden');
+        }
+
+        function saveDailyGoal() {
+            const val = parseFloat(document.getElementById('inputDailyGoal').value);
+            if (val && val > 0) {
+                dailyGoal = val;
+                saveData();
+                closeGoalModal();
+                showToast('Meta diária atualizada!');
+            }
+        }
+
+        function updateGoalWidget() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayDeliveries = deliveries.filter(d => d.date === todayStr && d.status === 'Concluída');
+            const todayShifts = shifts.filter(s => s.date === todayStr);
+
+            const totalEarnings = todayDeliveries.reduce((sum, d) => sum + (parseFloat(d.fee) || 0) + (parseFloat(d.tip) || 0), 0)
+                                + todayShifts.reduce((sum, s) => sum + (parseFloat(s.fixedValue) || 0), 0);
+
+            const percentage = Math.min(100, Math.round((totalEarnings / dailyGoal) * 100));
+            const remaining = dailyGoal - totalEarnings;
+
+            document.getElementById('goalProgressText').textContent = `${formatBRL(totalEarnings)} / ${formatBRL(dailyGoal)}`;
+            document.getElementById('goalProgressBar').style.width = percentage + '%';
+
+            const remainingEl = document.getElementById('goalRemainingText');
+            if (remaining <= 0) {
+                remainingEl.textContent = "🎉 Parabéns! Você bateu sua meta de hoje!";
+                remainingEl.className = "text-[10px] text-brand-500 font-bold text-right";
+            } else {
+                remainingEl.textContent = `Faltam ${formatBRL(remaining)} para bater a meta de hoje`;
+                remainingEl.className = "text-[10px] text-gray-400 text-right italic";
+            }
+        }
+
+        /* ==========================================================================
+           REGISTRO DE ENTREGAS
+           ========================================================================== */
+        function saveDelivery(event) {
+            event.preventDefault();
+            const id = document.getElementById('deliveryId').value;
+            const platform = document.getElementById('delPlatform').value;
+            const address = document.getElementById('delClientAddress').value.trim() || 'Entrega Rápida';
+            const fee = parseFloat(document.getElementById('delFee').value) || 0;
+            const tip = parseFloat(document.getElementById('delTip').value) || 0;
+            const paymentMethod = document.getElementById('delPaymentMethod').value;
+            const status = document.getElementById('delStatus').value;
+            const date = document.getElementById('delDate').value;
+            const time = document.getElementById('delTime').value;
+            const notes = document.getElementById('delNotes').value.trim();
+
+            if (id) {
+                const index = deliveries.findIndex(d => d.id === id);
+                if (index !== -1) {
+                    deliveries[index] = { id, platform, address, fee, tip, paymentMethod, status, date, time, notes };
+                    showToast('Entrega atualizada!');
+                }
+            } else {
+                const newDelivery = {
+                    id: 'del_' + Date.now(),
+                    platform,
+                    address,
+                    fee,
+                    tip,
+                    paymentMethod,
+                    status,
+                    date,
+                    time,
+                    notes
+                };
+                deliveries.unshift(newDelivery);
+                showToast('Entrega gravada!');
+            }
+
+            resetDeliveryForm();
+            saveData();
+            switchTab('tab-dashboard');
+        }
+
+        function resetDeliveryForm() {
+            document.getElementById('deliveryForm').reset();
+            document.getElementById('deliveryId').value = '';
+            document.getElementById('deliveryFormTitle').textContent = 'Registrar Nova Entrega';
+            document.getElementById('btnCancelEditDel').classList.add('hidden');
+            initDates();
+        }
+
+        function editDelivery(id) {
+            const del = deliveries.find(d => d.id === id);
+            if (!del) return;
+
+            document.getElementById('deliveryId').value = del.id;
+            document.getElementById('delPlatform').value = del.platform;
+            document.getElementById('delClientAddress').value = del.address;
+            document.getElementById('delFee').value = del.fee;
+            document.getElementById('delTip').value = del.tip;
+            document.getElementById('delPaymentMethod').value = del.paymentMethod;
+            document.getElementById('delStatus').value = del.status;
+            document.getElementById('delDate').value = del.date;
+            document.getElementById('delTime').value = del.time;
+            document.getElementById('delNotes').value = del.notes || '';
+
+            document.getElementById('deliveryFormTitle').textContent = 'Editar Entrega';
+            document.getElementById('btnCancelEditDel').classList.remove('hidden');
+
+            switchTab('tab-add-delivery');
+        }
+
+        function cancelDeliveryEdit() {
+            resetDeliveryForm();
+            switchTab('tab-history');
+        }
+
+        function deleteDelivery(id) {
+            if (confirm('Excluir este registro de entrega?')) {
+                deliveries = deliveries.filter(d => d.id !== id);
+                saveData();
+                showToast('Registro excluído.');
+            }
+        }
+
+        function toggleDeliveryStatus(id) {
+            const del = deliveries.find(d => d.id === id);
+            if (del) {
+                del.status = del.status === 'Concluída' ? 'Pendente' : 'Concluída';
+                saveData();
+                showToast(`Status alterado para ${del.status}`);
+            }
+        }
+
+        /* ==========================================================================
+           REGISTRO DE TURNOS & GASTOS
+           ========================================================================== */
+        function saveShift(event) {
+            event.preventDefault();
+            const id = document.getElementById('shiftId').value;
+            const date = document.getElementById('shiftDate').value;
+            const fixedValue = parseFloat(document.getElementById('shiftFixedValue').value) || 0;
+            const kmStart = parseFloat(document.getElementById('shiftKmStart').value) || 0;
+            const kmEnd = parseFloat(document.getElementById('shiftKmEnd').value) || 0;
+            const fuel = parseFloat(document.getElementById('shiftFuel').value) || 0;
+            const food = parseFloat(document.getElementById('shiftFood').value) || 0;
+            const maintenance = parseFloat(document.getElementById('shiftMaintenance').value) || 0;
+            const others = parseFloat(document.getElementById('shiftOthers').value) || 0;
+            const notes = document.getElementById('shiftNotes').value.trim();
+
+            if (id) {
+                const index = shifts.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    shifts[index] = { id, date, fixedValue, kmStart, kmEnd, fuel, food, maintenance, others, notes };
+                    showToast('Turno atualizado!');
+                }
+            } else {
+                const newShift = {
+                    id: 'shift_' + Date.now(),
+                    date,
+                    fixedValue,
+                    kmStart,
+                    kmEnd,
+                    fuel,
+                    food,
+                    maintenance,
+                    others,
+                    notes
+                };
+                shifts.unshift(newShift);
+                showToast('Gastos e Turno salvos!');
+            }
+
+            resetShiftForm();
+            saveData();
+            switchTab('tab-dashboard');
+        }
+
+        function resetShiftForm() {
+            document.getElementById('shiftForm').reset();
+            document.getElementById('shiftId').value = '';
+            document.getElementById('shiftFormTitle').textContent = 'Diária, Gastos & Quilometragem';
+            document.getElementById('btnCancelEditShift').classList.add('hidden');
+            initDates();
+        }
+
+        function editShift(id) {
+            const shift = shifts.find(s => s.id === id);
+            if (!shift) return;
+
+            document.getElementById('shiftId').value = shift.id;
+            document.getElementById('shiftDate').value = shift.date;
+            document.getElementById('shiftFixedValue').value = shift.fixedValue;
+            document.getElementById('shiftKmStart').value = shift.kmStart || '';
+            document.getElementById('shiftKmEnd').value = shift.kmEnd || '';
+            document.getElementById('shiftFuel').value = shift.fuel;
+            document.getElementById('shiftFood').value = shift.food;
+            document.getElementById('shiftMaintenance').value = shift.maintenance || 0;
+            document.getElementById('shiftOthers').value = shift.others;
+            document.getElementById('shiftNotes').value = shift.notes || '';
+
+            document.getElementById('shiftFormTitle').textContent = 'Editar Turno / Gastos';
+            document.getElementById('btnCancelEditShift').classList.remove('hidden');
+
+            switchTab('tab-add-shift');
+        }
+
+        function cancelShiftEdit() {
+            resetShiftForm();
+            switchTab('tab-history');
+        }
+
+        function deleteShift(id) {
+            if (confirm('Excluir este lançamento de turno?')) {
+                shifts = shifts.filter(s => s.id !== id);
+                saveData();
+                showToast('Turno removido.');
+            }
+        }
+
+        /* ==========================================================================
+           RENDERIZAÇÃO E FILTROS
+           ========================================================================== */
+        function renderApp() {
+            updateGoalWidget();
+            renderDashboard();
+            renderHistoryList();
+        }
+
+        function filterByPeriod(itemDateStr, period) {
+            if (period === 'all') return true;
+            const itemDate = new Date(itemDateStr + 'T00:00:00');
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            if (period === 'today') {
+                return itemDateStr === todayStr;
+            }
+
+            if (period === 'week') {
+                const startOfWeek = new Date(now);
+                const day = now.getDay();
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+                startOfWeek.setDate(diff);
+                startOfWeek.setHours(0,0,0,0);
+                return itemDate >= startOfWeek;
+            }
+
+            if (period === 'month') {
+                return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+            }
+
+            return true;
+        }
+
+        function renderDashboard() {
+            const filteredDeliveries = deliveries.filter(d => filterByPeriod(d.date, activePeriodFilter) && d.status === 'Concluída');
+            const filteredShifts = shifts.filter(s => filterByPeriod(s.date, activePeriodFilter));
+
+            const totalFee = filteredDeliveries.reduce((sum, d) => sum + (parseFloat(d.fee) || 0), 0);
+            const totalTips = filteredDeliveries.reduce((sum, d) => sum + (parseFloat(d.tip) || 0), 0);
+            const totalFixedDiarias = filteredShifts.reduce((sum, s) => sum + (parseFloat(s.fixedValue) || 0), 0);
+
+            const grossRevenue = totalFee + totalTips + totalFixedDiarias;
+
+            const totalExpenses = filteredShifts.reduce((sum, s) => {
+                return sum + (parseFloat(s.fuel) || 0) + (parseFloat(s.food) || 0) + (parseFloat(s.maintenance) || 0) + (parseFloat(s.others) || 0);
+            }, 0);
+
+            const totalKm = filteredShifts.reduce((sum, s) => {
+                if (s.kmEnd && s.kmStart && s.kmEnd > s.kmStart) {
+                    return sum + (s.kmEnd - s.kmStart);
+                }
+                return sum;
+            }, 0);
+
+            const netProfit = grossRevenue - totalExpenses;
+            const totalCount = filteredDeliveries.length;
+            const avgDelivery = totalCount > 0 ? (totalFee + totalTips) / totalCount : 0;
+
+            document.getElementById('dashLucroLiquido').textContent = formatBRL(netProfit);
+            document.getElementById('dashFaturamentoBruto').textContent = formatBRL(grossRevenue);
+            document.getElementById('dashTotalDespesas').textContent = formatBRL(totalExpenses);
+            document.getElementById('dashTotalEntregas').textContent = totalCount;
+            document.getElementById('dashMediaEntrega').textContent = formatBRL(avgDelivery);
+            document.getElementById('dashGorjetas').textContent = formatBRL(totalTips);
+            document.getElementById('dashDiariasFixas').textContent = formatBRL(totalFixedDiarias);
+            document.getElementById('dashKmRodados').textContent = totalKm + ' km';
+
+            // Lista recente de entregas
+            const recentListEl = document.getElementById('recentDeliveriesList');
+            recentListEl.innerHTML = '';
+
+            const recent = deliveries.slice(0, 4);
+            if (recent.length === 0) {
+                recentListEl.innerHTML = '<p class="text-xs text-gray-400 py-3 text-center">Nenhuma entrega registrada ainda.</p>';
+            } else {
+                recent.forEach(d => {
+                    const totalVal = (parseFloat(d.fee) || 0) + (parseFloat(d.tip) || 0);
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl text-xs";
+                    item.innerHTML = `
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center font-bold text-xs">
+                                <i class="fa-solid fa-box"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(d.address)}</p>
+                                <p class="text-[10px] text-gray-400">${escapeHtml(d.platform)} • ${d.time || ''}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-gray-900 dark:text-white block">${formatBRL(totalVal)}</span>
+                            <span class="text-[9px] px-1.5 py-0.2 rounded ${d.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'} font-bold">${d.status}</span>
+                        </div>
+                    `;
+                    recentListEl.appendChild(item);
+                });
+            }
+        }
+
+        function setHistorySubTab(subTab) {
+            activeHistorySubTab = subTab;
+            const btnDel = document.getElementById('subtab-btn-deliveries');
+            const btnShift = document.getElementById('subtab-btn-shifts');
+
+            if (subTab === 'deliveries') {
+                btnDel.className = "flex-1 py-2 rounded-lg text-center transition bg-white dark:bg-gray-800 text-brand-500 shadow-sm font-semibold";
+                btnShift.className = "flex-1 py-2 rounded-lg text-center transition text-gray-600 dark:text-gray-400";
+            } else {
+                btnShift.className = "flex-1 py-2 rounded-lg text-center transition bg-white dark:bg-gray-800 text-brand-500 shadow-sm font-semibold";
+                btnDel.className = "flex-1 py-2 rounded-lg text-center transition text-gray-600 dark:text-gray-400";
+            }
+            renderHistoryList();
+        }
+
+        function renderHistoryList() {
+            const container = document.getElementById('historyItemsContainer');
+            container.innerHTML = '';
+
+            const dateFilter = document.getElementById('historyDateFilter').value;
+            const platformFilter = document.getElementById('historyPlatformFilter').value;
+
+            if (activeHistorySubTab === 'deliveries') {
+                let filtered = deliveries.filter(d => {
+                    const matchDate = !dateFilter || d.date === dateFilter;
+                    const matchPlatform = platformFilter === 'ALL' || d.platform === platformFilter;
+                    return matchDate && matchPlatform;
+                });
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '<div class="p-8 text-center text-xs text-gray-400">Nenhuma entrega encontrada.</div>';
+                    return;
+                }
+
+                filtered.forEach(d => {
+                    const totalVal = (parseFloat(d.fee) || 0) + (parseFloat(d.tip) || 0);
+                    const card = document.createElement('div');
+                    card.className = "bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-center justify-between";
+                    card.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-500/10 text-brand-500">${escapeHtml(d.platform)}</span>
+                                <span class="text-[10px] text-gray-400">${formatDateBR(d.date)} às ${d.time}</span>
+                            </div>
+                            <h4 class="font-semibold text-xs text-gray-800 dark:text-gray-100">${escapeHtml(d.address)}</h4>
+                            <p class="text-[10px] text-gray-400">
+                                Taxa: ${formatBRL(d.fee)} | Gorjeta: ${formatBRL(d.tip)} | ${d.paymentMethod}
+                            </p>
+                        </div>
+                        <div class="flex flex-col items-end justify-between space-y-2">
+                            <span class="font-extrabold text-sm text-gray-900 dark:text-white">${formatBRL(totalVal)}</span>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="toggleDeliveryStatus('${d.id}')" title="Marcar/Desmarcar Paga" class="p-1.5 ${d.status === 'Concluída' ? 'text-emerald-500' : 'text-amber-500'} hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                                    <i class="fa-solid ${d.status === 'Concluída' ? 'fa-circle-check' : 'fa-circle-notch'}"></i>
+                                </button>
+                                <button onclick="editDelivery('${d.id}')" class="p-1.5 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteDelivery('${d.id}')" class="p-1.5 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } else {
+                let filtered = shifts.filter(s => {
+                    return !dateFilter || s.date === dateFilter;
+                });
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '<div class="p-8 text-center text-xs text-gray-400">Nenhum turno/gasto registrado.</div>';
+                    return;
+                }
+
+                filtered.forEach(s => {
+                    const totalExpenses = (parseFloat(s.fuel) || 0) + (parseFloat(s.food) || 0) + (parseFloat(s.maintenance) || 0) + (parseFloat(s.others) || 0);
+                    const kmRodados = (s.kmEnd && s.kmStart && s.kmEnd > s.kmStart) ? (s.kmEnd - s.kmStart) : 0;
+
+                    const card = document.createElement('div');
+                    card.className = "bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-center justify-between";
+                    card.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-500">Turno</span>
+                                <span class="text-[10px] text-gray-400">${formatDateBR(s.date)}</span>
+                            </div>
+                            <h4 class="font-semibold text-xs text-gray-800 dark:text-gray-100">Gastos Totais: <span class="text-red-500">${formatBRL(totalExpenses)}</span></h4>
+                            <p class="text-[10px] text-gray-400">
+                                Gasolina: ${formatBRL(s.fuel)} | Diária Fixa: ${formatBRL(s.fixedValue)} ${kmRodados > 0 ? `| Rodagem: ${kmRodados}km` : ''}
+                            </p>
+                        </div>
+                        <div class="flex flex-col items-end justify-between space-y-2">
+                            <div class="flex items-center space-x-1">
+                                <button onclick="editShift('${s.id}')" class="p-1.5 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteShift('${s.id}')" class="p-1.5 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        }
+
+        /* ==========================================================================
+           GRÁFICOS (Chart.js)
+           ========================================================================== */
+        function initCharts() {
+            const ctxWeekly = document.getElementById('weeklyEarningsChart').getContext('2d');
+            const ctxPlatform = document.getElementById('platformDistributionChart').getContext('2d');
+
+            weeklyChartInstance = new Chart(ctxWeekly, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Ganhos (R$)', data: [], backgroundColor: '#10b981', borderRadius: 6 },
+                        { label: 'Gastos (R$)', data: [], backgroundColor: '#ef4444', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(156, 163, 175, 0.1)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            platformChartInstance = new Chart(ctxPlatform, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#ea580c', '#ef4444', '#3b82f6', '#06b6d4', '#eab308', '#8b5cf6', '#6b7280']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (!weeklyChartInstance || !platformChartInstance) return;
+
+            const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const last7DaysLabels = [];
+            const last7DaysEarnings = [];
+            const last7DaysExpenses = [];
+
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                last7DaysLabels.push(daysOfWeek[d.getDay()]);
+
+                const dayDeliveries = deliveries.filter(del => del.date === dateStr && del.status === 'Concluída');
+                const dayShifts = shifts.filter(sh => sh.date === dateStr);
+
+                const earningsSum = dayDeliveries.reduce((acc, c) => acc + (parseFloat(c.fee) || 0) + (parseFloat(c.tip) || 0), 0)
+                                  + dayShifts.reduce((acc, c) => acc + (parseFloat(c.fixedValue) || 0), 0);
+
+                const expensesSum = dayShifts.reduce((acc, c) => acc + (parseFloat(c.fuel) || 0) + (parseFloat(c.food) || 0) + (parseFloat(c.maintenance) || 0) + (parseFloat(c.others) || 0), 0);
+
+                last7DaysEarnings.push(earningsSum);
+                last7DaysExpenses.push(expensesSum);
+            }
+
+            weeklyChartInstance.data.labels = last7DaysLabels;
+            weeklyChartInstance.data.datasets[0].data = last7DaysEarnings;
+            weeklyChartInstance.data.datasets[1].data = last7DaysExpenses;
+            weeklyChartInstance.update();
+
+            // Gráfico de Plataformas
+            const platformTotals = {};
+            deliveries.filter(d => d.status === 'Concluída').forEach(d => {
+                const p = d.platform || 'Outros';
+                const total = (parseFloat(d.fee) || 0) + (parseFloat(d.tip) || 0);
+                platformTotals[p] = (platformTotals[p] || 0) + total;
+            });
+
+            const platformLabels = Object.keys(platformTotals);
+            const platformData = Object.values(platformTotals);
+
+            if (platformLabels.length > 0) {
+                platformChartInstance.data.labels = platformLabels;
+                platformChartInstance.data.datasets[0].data = platformData;
+            } else {
+                platformChartInstance.data.labels = ['Sem registros'];
+                platformChartInstance.data.datasets[0].data = [1];
+            }
+            platformChartInstance.update();
+        }
+
+        /* ==========================================================================
+           EXPORTAÇÃO E IMPORTAÇÃO
+           ========================================================================== */
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ deliveries, shifts, dailyGoal }));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `EntregadorPro_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.deliveries || parsed.shifts) {
+                        deliveries = parsed.deliveries || [];
+                        shifts = parsed.shifts || [];
+                        if (parsed.dailyGoal) dailyGoal = parsed.dailyGoal;
+                        saveData();
+                        showToast('Dados restaurados!');
+                    }
+                } catch(err) {
+                    alert('Erro ao carregar o arquivo JSON.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportDataCSV() {
+            if (deliveries.length === 0) {
+                alert('Sem entregas cadastradas para exportar.');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,ID,Data,Hora,Plataforma,Destino,Taxa,Gorjeta,Pagamento,Status\n";
+
+            deliveries.forEach(d => {
+                const row = `"${d.id}","${d.date}","${d.time}","${d.platform}","${d.address.replace(/"/g, '""')}","${d.fee}","${d.tip}","${d.paymentMethod}","${d.status}"`;
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Entregas_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function clearAllData() {
+            if (confirm('Atenção: deseja limpar permanentemente todos os seus dados?')) {
+                deliveries = [];
+                shifts = [];
+                saveData();
+                showToast('Todos os registros foram apagados.');
+            }
+        }
+
+        /* ==========================================================================
+           HELPERS & EXEMPLOS
+           ========================================================================== */
+        function formatBRL(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+        }
+
+        function formatDateBR(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function getSampleDeliveries() {
+            const today = new Date().toISOString().split('T')[0];
+            return [
+                { id: 'del_101', platform: 'iFood', address: 'Av. Brasil, 1200 - Centro', fee: 14.50, tip: 4.00, paymentMethod: 'Cartão no App', status: 'Concluída', date: today, time: '12:15', notes: '' },
+                { id: 'del_102', platform: 'Rappi', address: 'Rua das Flores, 88 - Bairro Alto', fee: 10.00, tip: 0.00, paymentMethod: 'PIX', status: 'Concluída', date: today, time: '13:00', notes: '' },
+                { id: 'del_103', platform: 'Uber Flash', address: 'Rua Sete de Setembro, 45', fee: 18.00, tip: 5.00, paymentMethod: 'Cartão no App', status: 'Concluída', date: today, time: '14:20', notes: '' }
+            ];
+        }
+
+        function getSampleShifts() {
+            const today = new Date().toISOString().split('T')[0];
+            return [
+                { id: 'shift_101', date: today, fixedValue: 25.00, kmStart: 12400, kmEnd: 12485, fuel: 30.00, food: 18.00, maintenance: 0, others: 0, notes: 'Almoço reforçado' }
+            ];
+        }
+    </script>
+</body>
+</html>
+```
